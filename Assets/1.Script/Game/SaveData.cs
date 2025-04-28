@@ -4,14 +4,21 @@ using UnityEngine;
 
 public class SaveData : MonoBehaviour
 {
-    public static SaveData saveData;
-    public int SaveScore;
+    #region 변수 선언
+    public static SaveData Instance { get; private set; }
+    public int saveScore { get; set; }
+    #endregion
+
+    #region 생명주기 함수
     private void Awake()
     {
-        if (saveData == null)
-            saveData = this;
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
         else
-            Destroy(saveData);
-        DontDestroyOnLoad(gameObject);
+            Destroy(gameObject);
     }
+    #endregion
 }

@@ -3,327 +3,409 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-enum Patterns
+#region Enum
+public enum Patterns
 {
-    pattern_1,
-    pattern_2,
-    pattern_3,
-    none
+    Pattern1,
+    Pattern2,
+    Pattern3,
+    None
 }
+#endregion
+
 public class MidBoss : MonoBehaviour
 {
-    [SerializeField] Image HpBar;
+    #region Variables
+
+    [Header("UI")]
+    [SerializeField] private Image hpBar;
+
+    [Header("Pattern Settings")]
+    [SerializeField] private Patterns currentPattern = Patterns.None;
+    [SerializeField] private bool[] isPatternActive;
+
+    [Header("Boss Components")]
+    [SerializeField] private GameObject axis;
+    [SerializeField] private GameObject axis_2;
+    [SerializeField] private GameObject laser;
+    [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private GameObject attackRange;
+    [SerializeField] private GameObject deathEffect;
+    [SerializeField] private Transform spawnPoint;
+
     private bool isStart = false;
-    public float hp = 100;
-    private int attackCount;
-    public static MidBoss midBoss;
-    [SerializeField] Patterns patterns;
-    [SerializeField] bool[] isPattern;
-    private bool isLook = true;
-    private bool isRo = false;
-    public bool isAttack = false;
-    [SerializeField] GameObject axis;
-    [SerializeField] GameObject axis_2;
-    [SerializeField] GameObject Laser;
-    [SerializeField] GameObject BulletPrefab;
-    [SerializeField] GameObject AttackRang;
-    [SerializeField] GameObject DeadEfact;
-    [SerializeField] Transform SpawnPoint;
-    private float laserTime = 0f;
-    private bool hitIng = false;
+    private bool isLooking = true;
+    private bool isRotating = false;
+    public bool isAttacking = false;
+
     private bool isDead = false;
-    private bool isDeadIng = false;
+    private bool isDeadProcessStarted = false;
+    private bool isHitProcessing = false;
+
+    private float laserTime = 0f;
+    public float hp = 100f;
+
+    public static MidBoss Instance;
+
+    #endregion
+
+    #region Unity Functions
+
     private void Awake()
     {
-        if (midBoss == null)
-            midBoss = this;
+        if (Instance == null)
+            Instance = this;
         else
             Destroy(gameObject);
     }
+
     private void Start()
     {
-        StartCoroutine(Starting());
+        StartCoroutine(StartRoutine());
     }
-    IEnumerator Starting()
-    { 
-        float t = 0f;
-        while (t <= 2f)
+
+    private void Update()
+    {
+        hpBar.fillAmount = hp / 100f;
+
+        if (!isStart) return;
+
+        switch (currentPattern)
         {
-            t+= Time.deltaTime;
-            transform.position = Vector3.Lerp(transform.position, new Vector3(0, 0 ,3), 1.5f* Time.deltaTime);
+            case Patterns.Pattern1:
+                HandlePattern1();
+                break;
+            case Patterns.Pattern2:
+                HandlePattern2();
+                break;
+            case Patterns.Pattern3:
+                HandlePattern3();
+                break;
+        }
+
+        CheckDead();
+    }
+
+    #endregion
+
+    #region Start Routine
+
+    private IEnumerator StartRoutine()
+    {
+        float timer = 0f;
+
+        while (timer <= 2f)
+        {
+            timer += Time.deltaTime;
+            transform.position = Vector3.Lerp(transform.position, new Vector3(0, 0, 3), 1.5f * Time.deltaTime);
             yield return null;
         }
-        transform.position = new Vector3(0,0,5);
+
+        transform.position = new Vector3(0, 0, 5);
         isStart = true;
     }
-    void Update()
-    {
-        HpBar.fillAmount = hp / 100;
-        if (!isStart)
-            return;
-        switch (patterns)
-        {
-            case Patterns.pattern_1:
-                Pattern1();
-                break;
-            case Patterns.pattern_2:
-                Pattern2();
-                break;
-            case Patterns.pattern_3:
-                Pattern3();
-                break;
-        }
-        Dead();
-    }
 
+    #endregion
 
-    void Pattern1()//레이저 발사
+    #region Pattern 1 - Laser Attack
+
+    private void HandlePattern1()
     {
-        if (isLook)
-        {
-            LookAt();
-        }
+        if (isLooking)
+            LookAtPlayer();
+
         laserTime += Time.deltaTime;
-        if (!isPattern[0])
+
+        if (!isPatternActive[0])
         {
-            print("");
-            StartCoroutine(Pattering1());
-            isPattern[0] = true;
-            isPattern[1] = false;
-            isPattern[2] = false;
+            StartCoroutine(Pattern1Routine());
+            SetPatternActive(0);
         }
     }
 
-    IEnumerator Pattering1()
+    private IEnumerator Pattern1Routine()
     {
         for (int i = 0; i <= 3; i++)
         {
-            isLook = false;
-            float t = 0;
-            while (t <= 0.4f)
-            {
-                t += Time.deltaTime;
-                axis.transform.Rotate(0, 0, 100 * Time.deltaTime);
-                yield return null;
-            }
+            isLooking = false;
+
+            yield return RotateAxis(100f, 0.4f);
             yield return new WaitForSecondsRealtime(0.1f);
-            float f = 0;
-            while (f <= 0.3f)
-            {
-                f += Time.deltaTime;
-                axis.transform.Rotate(0, 0, -700 * Time.deltaTime);
-                yield return null;
-            }
+
+            yield return RotateAxis(-700f, 0.3f);
             axis.transform.rotation = Quaternion.Euler(0, axis.transform.eulerAngles.y, 0);
+
             yield return new WaitForSecondsRealtime(0.1f);
-            Laser.SetActive(true);
-            for (int j = 0; j < 18; j++)
-            {
-                Instantiate(BulletPrefab, transform.position, Quaternion.Euler(0, j * 20, 0));
-            }
+
+            laser.SetActive(true);
+            FireRadialBullets(18, 20);
+
             Camera.main.GetComponent<CameraShake>().SetUp(0.1f, 1f);
+
             yield return new WaitForSecondsRealtime(1f);
 
-            float c = 0f;
+            yield return RotateToPlayer(1f);
 
-            while (c <= 1f)
-            {
-                c += Time.deltaTime;
-                Quaternion targetRotation = Quaternion.LookRotation(Player.player.transform.position - axis.transform.position);
-                axis.transform.rotation = Quaternion.Lerp(axis.transform.rotation, targetRotation, 10 * Time.deltaTime);
-                yield return null;
-            }
-            isLook = true;
+            isLooking = true;
         }
+
         yield return new WaitForSecondsRealtime(1f);
-        PatternRand();
+
+        RandomizeNextPattern();
     }
 
-    void LookAt()
+    private void LookAtPlayer()
     {
         Quaternion targetRotation = Quaternion.LookRotation(Player.player.transform.position - axis.transform.position);
         axis.transform.rotation = targetRotation;
     }
 
-    void Pattern2()//돌면서 퍼지는 공격
+    private void FireRadialBullets(int bulletCount, float angleStep)
     {
-        if (!isPattern[1])
+        for (int i = 0; i < bulletCount; i++)
         {
-            StartCoroutine(Pattering2());
-            isPattern[0] = false;
-            isPattern[1] = true;
-            isPattern[2] = false;
-        }
-        if (isRo)
-        {
-            axis.transform.Rotate(0,0,1000 * Time.deltaTime);
+            Instantiate(bulletPrefab, transform.position, Quaternion.Euler(0, i * angleStep, 0));
         }
     }
 
-
-    IEnumerator Pattering2()
+    private IEnumerator RotateAxis(float speed, float duration)
     {
-        float t = 0f;
-        while (t <= 1f)
+        float elapsed = 0f;
+
+        while (elapsed < duration)
         {
-            t+= Time.deltaTime;
-            axis.transform.rotation = Quaternion.Lerp(axis.transform.rotation, Quaternion.Euler(-90, 180 ,0),5 * Time.deltaTime);
+            elapsed += Time.deltaTime;
+            axis.transform.Rotate(0, 0, speed * Time.deltaTime);
             yield return null;
         }
-        axis.transform.rotation = Quaternion.Euler(-90, 180, 0);
+    }
 
-        isRo = true;
+    private IEnumerator RotateToPlayer(float duration)
+    {
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            Quaternion targetRotation = Quaternion.LookRotation(Player.player.transform.position - axis.transform.position);
+            axis.transform.rotation = Quaternion.Lerp(axis.transform.rotation, targetRotation, 10 * Time.deltaTime);
+            yield return null;
+        }
+    }
+
+    #endregion
+
+    #region Pattern 2 - Rotating Bullet Spray
+
+    private void HandlePattern2()
+    {
+        if (!isPatternActive[1])
+        {
+            StartCoroutine(Pattern2Routine());
+            SetPatternActive(1);
+        }
+
+        if (isRotating)
+        {
+            axis.transform.Rotate(0, 0, 1000f * Time.deltaTime);
+        }
+    }
+
+    private IEnumerator Pattern2Routine()
+    {
+        yield return RotateAxisTo(new Vector3(-90, 180, 0), 1f);
+
+        isRotating = true;
         Camera.main.GetComponent<CameraShake>().SetUp(0.2f, 1f);
+
         for (int i = 0; i <= 10; i++)
         {
             for (int j = 0; j < 25; j++)
             {
-                Instantiate(BulletPrefab, SpawnPoint.position, Quaternion.Euler(SpawnPoint.eulerAngles));
+                Instantiate(bulletPrefab, spawnPoint.position, spawnPoint.rotation);
                 yield return new WaitForSecondsRealtime(0.02f);
             }
         }
-        isRo = false;
 
-        float f = 0f;
-        while (f <= 1f)
-        {
-            f += Time.deltaTime;
-            axis.transform.rotation = Quaternion.Lerp(axis.transform.rotation, Quaternion.Euler(0, 180, 0), 5 * Time.deltaTime);
-            yield return null;
-        }
-        axis.transform.rotation = Quaternion.Euler(0, 180, 0);
+        isRotating = false;
+
+        yield return RotateAxisTo(new Vector3(0, 180, 0), 1f);
+
         yield return new WaitForSecondsRealtime(1f);
-        patterns = Patterns.pattern_1;
+
+        currentPattern = Patterns.Pattern1;
     }
 
-    void Pattern3()
+    private IEnumerator RotateAxisTo(Vector3 targetEulerAngles, float duration)
     {
-        if (!isPattern[2])
-        {
-            StartCoroutine(Pattering3());
-            isPattern[0] = false;
-            isPattern[1] = false;
-            isPattern[2] = true;
-        }
-        if (isRo)
-        {
-            axis.transform.Rotate(0, 0, 1000 * Time.deltaTime);
-        }
-        if (isAttack)
-        {
-            transform.Translate(0, 0, -100 * Time.deltaTime);
-        }
-    }
+        float elapsed = 0f;
+        Quaternion startRotation = axis.transform.rotation;
+        Quaternion targetRotation = Quaternion.Euler(targetEulerAngles);
 
-    IEnumerator Pattering3()
-    {
-        float t = 0f;
-        while (t <= 1f)
+        while (elapsed < duration)
         {
-            t += Time.deltaTime;
-            axis.transform.rotation = Quaternion.Lerp(axis.transform.rotation, Quaternion.Euler(90, 180, 0), 5 * Time.deltaTime);
+            elapsed += Time.deltaTime;
+            axis.transform.rotation = Quaternion.Lerp(startRotation, targetRotation, elapsed / duration);
             yield return null;
         }
-        axis.transform.rotation = Quaternion.Euler(90, 180, 0);
-        isRo = true;
-        AttackRang.SetActive(true);
+
+        axis.transform.rotation = targetRotation;
+    }
+
+    #endregion
+
+    #region Pattern 3 - Charge Attack
+
+    private void HandlePattern3()
+    {
+        if (!isPatternActive[2])
+        {
+            StartCoroutine(Pattern3Routine());
+            SetPatternActive(2);
+        }
+
+        if (isRotating)
+            axis.transform.Rotate(0, 0, 1000f * Time.deltaTime);
+
+        if (isAttacking)
+            transform.Translate(0, 0, -100f * Time.deltaTime);
+    }
+
+    private IEnumerator Pattern3Routine()
+    {
+        yield return RotateAxisTo(new Vector3(90, 180, 0), 1f);
+
+        isRotating = true;
+        attackRange.SetActive(true);
         BossAttackRang.instance.isStart = true;
+
         yield return new WaitForSecondsRealtime(2f);
-        isAttack = false;
-        Attack(1, -12);
-        yield return new WaitForSecondsRealtime(3f);
-        isAttack = false;
-        Attack(-1, -3);
-        yield return new WaitForSecondsRealtime(3f);
-        isAttack = false;
-        Attack(1, -3);
-        yield return new WaitForSecondsRealtime(3f);
-        isAttack = false;
-        Attack(-1, -12);
-        yield return new WaitForSecondsRealtime(3f);
-        isAttack = false;
+
+        yield return ExecuteChargeAttack(1, -12);
+        yield return ExecuteChargeAttack(-1, -3);
+        yield return ExecuteChargeAttack(1, -3);
+        yield return ExecuteChargeAttack(-1, -12);
+
+        ResetBossPosition();
+        yield return MoveBossBack(2f);
+
         yield return new WaitForSecondsRealtime(1f);
+
+        currentPattern = Patterns.Pattern1;
+    }
+
+    private IEnumerator ExecuteChargeAttack(float direction, float zPosition)
+    {
+        isAttacking = false;
+        SetupCharge(direction, zPosition);
+        yield return new WaitForSecondsRealtime(3f);
+        isAttacking = false;
+    }
+
+    private void SetupCharge(float direction, float zPosition)
+    {
+        transform.rotation = Quaternion.Euler(0, 90f * direction, 0);
+        transform.position = new Vector3(35f * direction, 0, zPosition);
+        attackRange.SetActive(true);
+        BossAttackRang.instance.isStart = true;
+    }
+
+    private void ResetBossPosition()
+    {
         transform.position = new Vector3(0, 0, 40);
         transform.rotation = Quaternion.identity;
         axis.transform.rotation = Quaternion.Euler(0, 180, 0);
-        isRo = false;
-        float c = 0;
-        while (c < 2)
-        {
-            c += Time.deltaTime;
-            transform.position = Vector3.Lerp(transform.position,new Vector3(0, 0, 5),2f * Time.deltaTime);
-            yield return null;
-        }
-        transform.position = new Vector3(0, 0, 5);
-        yield return new WaitForSecondsRealtime(1f);
-        //패턴 끝
-        patterns = Patterns.pattern_1;
-    }
-    void PatternRand()
-    {
-        int RandP = Random.Range(0,2);
-        switch (RandP)
-        {
-            case 0:
-                patterns = Patterns.pattern_2;
-                break;
-            case 1:
-                patterns = Patterns.pattern_3;
-                break;
-        }
+        isRotating = false;
     }
 
-    void Attack(float a, float b)
+    private IEnumerator MoveBossBack(float duration)
     {
-        transform.rotation = Quaternion.Euler(0, 90 * a, 0);
-        transform.position = new Vector3(35 * a, 0, b);
-        AttackRang.SetActive(true);
-        BossAttackRang.instance.isStart = true;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transform.position = Vector3.Lerp(transform.position, new Vector3(0, 0, 5), 2f * Time.deltaTime);
+            yield return null;
+        }
+
+        transform.position = new Vector3(0, 0, 5);
     }
-    void Dead()
+
+    #endregion
+
+    #region Death Handling
+
+    private void CheckDead()
     {
         if (hp <= 0)
         {
             isDead = true;
-            isDeadIng = true;
+            isDeadProcessStarted = true;
         }
+
         if (isDead)
         {
-            StartCoroutine(Deading());
+            StartCoroutine(DeathRoutine());
             isDead = false;
         }
     }
-    IEnumerator Deading()
+
+    private IEnumerator DeathRoutine()
     {
         axis.SetActive(false);
-        DeadEfact.SetActive(true);
-        Camera.main.GetComponent<CameraShake>().SetUp(0.1f,2);
+        deathEffect.SetActive(true);
+        Camera.main.GetComponent<CameraShake>().SetUp(0.1f, 2f);
+
         yield return new WaitForSecondsRealtime(0.5f);
+
         GameManager.gameManager.game = Game.gaming;
         GameManager.gameManager.BossKills++;
         Destroy(gameObject);
     }
-    IEnumerator Hit(float hp)
-    {
-        if (!isDeadIng)
-        {
-            this.hp -= hp;
-            hitIng = true;
-            axis_2.SetActive(false);
-            yield return new WaitForSecondsRealtime(0.1f);
-            axis_2.SetActive(true);
-            hitIng = false;
-        }
-    }
+
+    #endregion
+
+    #region Hit Handling
+
     private void OnTriggerEnter(Collider other)
     {
-        if (hitIng)
+        if (isHitProcessing || isDeadProcessStarted)
             return;
-        if (isDeadIng)
-            return;
-        if (other.gameObject.CompareTag("PlayerBt"))
+
+        if (other.CompareTag("PlayerBt"))
+            StartCoroutine(HitRoutine(0.5f));
+    }
+
+    private IEnumerator HitRoutine(float damage)
+    {
+        if (!isDeadProcessStarted)
         {
-            StartCoroutine(Hit(0.5f));
+            hp -= damage;
+            isHitProcessing = true;
+            axis_2.SetActive(false);
+
+            yield return new WaitForSecondsRealtime(0.1f);
+
+            axis_2.SetActive(true);
+            isHitProcessing = false;
         }
     }
+
+    #endregion
+
+    #region Utility
+
+    private void SetPatternActive(int index)
+    {
+        for (int i = 0; i < isPatternActive.Length; i++)
+            isPatternActive[i] = i == index;
+    }
+
+    private void RandomizeNextPattern()
+    {
+        currentPattern = (Patterns)Random.Range(1, 3);
+    }
+
+    #endregion
 }

@@ -33,7 +33,7 @@ public class BossAttackRang : MonoBehaviour
             attackRang.SetActive(true);
             yield return new WaitForSecondsRealtime(0.1f);
         }
-        MidBoss.midBoss.isAttack = true;
+        MidBoss.Instance.isAttacking = true;
         Camera.main.GetComponent<CameraShake>().SetUp(0.5f, 0.2f);
         gameObject.SetActive(false);;
     }

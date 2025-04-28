@@ -70,7 +70,7 @@ public class Cheat : MonoBehaviour
         }
         else if (GameManager.gameManager.game == Game.midBoss)
         {
-            MidBoss.midBoss.hp = 0;
+            MidBoss.Instance.hp = 0;
         }
         else if (GameManager.gameManager.game == Game.endBoss)
         {

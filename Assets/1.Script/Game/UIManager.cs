@@ -46,7 +46,7 @@ public class UIManager : MonoBehaviour
                 StartCoroutine(BossHp());
                 isBossing = true;
             }
-            if (MidBoss.midBoss.hp <= 0)
+            if (MidBoss.Instance.hp <= 0)
             {
                 isStage_1 = false;
             }
@@ -100,7 +100,7 @@ public class UIManager : MonoBehaviour
 
     public void UI_Next()
     {
-        SaveData.saveData.SaveScore = GameManager.gameManager.Score;
+        SaveData.Instance.saveScore = GameManager.gameManager.Score;
         SceneManager.LoadScene("RankingSceme");
     }
     #endregion

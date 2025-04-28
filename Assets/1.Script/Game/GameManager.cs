@@ -87,8 +87,8 @@ public class GameManager : MonoBehaviour
             spawner.isBool = IsBool.isFalse;
 
         // MidBoss랑 EndBoss도 예외처리
-        if (MidBoss.midBoss != null)
-            Destroy(MidBoss.midBoss.gameObject);
+        if (MidBoss.Instance != null)
+            Destroy(MidBoss.Instance.gameObject);
 
         if (EndBoss.endBoss != null)
             Destroy(EndBoss.endBoss.gameObject);
